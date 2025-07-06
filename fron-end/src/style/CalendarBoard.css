@@ -1,0 +1,23 @@
+.done {
+  background-color: #d4f8d4 !important;
+  color: #2e7d32 !important;
+  border: none;
+}
+
+.in-progress {
+  background-color: #dceaff !important;
+  color: #1565c0 !important;
+  border: none;
+}
+
+.not-started {
+  background-color: #f0f0f0 !important;
+  color: #757575 !important;
+  border: none;
+}
+
+.fail {
+  background-color: #ffd6d6 !important;
+  color: #c62828 !important;
+  border: none;
+}
