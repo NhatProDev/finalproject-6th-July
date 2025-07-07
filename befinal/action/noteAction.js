@@ -196,6 +196,56 @@ const changeNoteDate = async (req, res) => {
     }
 };
 
+const duplicateNoteToEndOfMonth = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { repeatInterval } = req.body; // số ngày lặp lại: 1-7
+        const userId = req.user.id || req.user._id;
+
+        if (!repeatInterval || repeatInterval < 1 || repeatInterval > 7) {
+            return res.status(400).json({ error: 'Invalid repeat interval (1-7 allowed)' });
+        }
+
+        const originalNote = await Note.findById(id);
+        if (!originalNote) {
+            return res.status(404).json({ error: 'Original note not found' });
+        }
+
+        if (originalNote.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const originalDate = new Date(originalNote.assignedDate);
+        const endOfMonth = new Date(originalDate.getFullYear(), originalDate.getMonth() + 1, 0);
+
+        let duplicatedCount = 0;
+        let current = new Date(originalDate);
+        current.setDate(current.getDate() + repeatInterval); // bắt đầu từ lần lặp đầu tiên
+
+        while (current <= endOfMonth) {
+            const duplicatedNote = new Note({
+                title: originalNote.title,
+                subject: originalNote.subject,
+                contentBlocks: originalNote.contentBlocks,
+                assignedDate: new Date(current),
+                userId,
+                calendarId: originalNote.calendarId
+            });
+
+            await duplicatedNote.save();
+            duplicatedCount++;
+
+            current.setDate(current.getDate() + repeatInterval);
+        }
+
+        res.status(201).json({ message: `Duplicated ${duplicatedCount} notes to end of month.` });
+    } catch (err) {
+        console.error('Error duplicating note:', err);
+        res.status(500).json({ error: 'Failed to duplicate note' });
+    }
+};
+
+
 
 
 module.exports = {
@@ -205,5 +255,6 @@ module.exports = {
     deleteNote,
     getAllNotes,
     toggleIsDone,
-    changeNoteDate
+    changeNoteDate,
+    duplicateNoteToEndOfMonth
 };

@@ -16,4 +16,6 @@ router.get('/', verifyToken, noteAction.getAllNotes);
 router.patch('/:id/toggle', verifyToken, noteAction.toggleIsDone);
 
 router.patch('/:id/changeDate', verifyToken, noteAction.changeNoteDate)
+
+router.post('/:id/duplicate', verifyToken, noteAction.duplicateNoteToEndOfMonth);
 module.exports = router;
