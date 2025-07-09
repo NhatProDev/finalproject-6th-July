@@ -1,5 +1,4 @@
-// components/AddEventForm.js
-import React, {useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Button, TextField, Typography, MenuItem, Select, InputLabel,
   FormControl, IconButton, CardContent
@@ -9,7 +8,7 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 
-function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
+function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess, initialData }) {
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
@@ -18,12 +17,26 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
   });
 
   const [newBlock, setNewBlock] = useState({ type: 'text', data: '' });
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
-  if (selectedDate) {
-    setFormData((prev) => ({ ...prev, assignedDate: new Date(selectedDate) }));
-  }
-}, [selectedDate]);
+    if (initialData) {
+      setFormData({
+        title: initialData.title || '',
+        subject: initialData.subject || '',
+        assignedDate: initialData.assignedDate ? new Date(initialData.assignedDate) : new Date(),
+        contentBlocks: (initialData.contentBlocks || []).map(block => ({
+          ...block,
+          data: typeof block.data === 'object' && block.data?.text ? block.data.text : block.data
+        })),
+      });
+    } else if (selectedDate) {
+      setFormData(prev => ({
+        ...prev,
+        assignedDate: new Date(selectedDate),
+      }));
+    }
+  }, [initialData, selectedDate]);
 
   const handleChange = (field) => (e) => {
     setFormData({ ...formData, [field]: e.target.value });
@@ -54,42 +67,56 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const payload = {
         ...formData,
+        assignedDate: formData.assignedDate.toISOString(),
+        contentBlocks: formData.contentBlocks.map(block => ({
+          type: block.type,
+          data: { text: block.data }
+        })),
         calendarId,
       };
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8003/api/notes', payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      if (initialData?.id) {
+        await axios.put(`http://localhost:8003/api/notes/${initialData.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        alert('Note updated successfully!');
+      } else {
+        await axios.post('http://localhost:8003/api/notes', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        alert('Note created successfully!');
+      }
 
-      alert('Note created successfully!');
-      onAddSuccess(response.data); // callback to update calendar
-      onClose(); // close the dialog
+      onAddSuccess();
+      onClose();
     } catch (err) {
-      console.error('Error creating note:', err);
-      alert('Failed to create note.');
+      console.error('Error saving note:', err);
+      alert('Failed to save note.');
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <CardContent>
-        <Typography variant="h6">New Event</Typography>
+        <Typography variant="h6">
+          {initialData ? 'Edit Event' : 'New Event'}
+        </Typography>
 
         <TextField
-          fullWidth margin="normal"
+          fullWidth
+          margin="normal"
           label="Title"
           value={formData.title}
           onChange={handleChange('title')}
         />
 
         <TextField
-          fullWidth margin="normal"
+          fullWidth
+          margin="normal"
           label="Subject"
           value={formData.subject}
           onChange={handleChange('subject')}
@@ -98,9 +125,11 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
             label="Assigned Date"
-            value={formData.assignedDate}
+            value={formData.assignedDate instanceof Date && !isNaN(formData.assignedDate) ? formData.assignedDate : null}
             onChange={handleDateChange}
-            renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+            renderInput={(params) => (
+              <TextField {...params} fullWidth margin="normal" error={!formData.assignedDate} />
+            )}
           />
         </LocalizationProvider>
 
@@ -141,8 +170,8 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
                 block.type === 'text'
                   ? 'primary.main'
                   : block.type === 'code'
-                  ? 'secondary.main'
-                  : 'success.main',
+                    ? 'secondary.main'
+                    : 'success.main',
               backgroundColor: '#f9f9f9',
               borderRadius: 1,
               position: 'relative',
@@ -150,7 +179,7 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
           >
             <Typography variant="subtitle2">[{block.type.toUpperCase()}]</Typography>
             <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
-              {block.data}
+              {typeof block.data === 'object' ? block.data?.text : block.data}
             </Typography>
 
             <IconButton
@@ -164,17 +193,13 @@ function AddEventForm({ selectedDate, calendarId, onClose, onAddSuccess }) {
         ))}
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-        <Button onClick={handleAddBlock} variant="outlined">
+          <Button onClick={handleAddBlock} variant="outlined">
             Add Task
-            </Button>
-        <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSubmit}
-        >
-            Save Event
-        </Button>
-</Box>
+          </Button>
+          <Button type="submit" variant="contained" color="primary">
+            {initialData ? 'Update Event' : 'Save Event'}
+          </Button>
+        </Box>
       </CardContent>
     </form>
   );

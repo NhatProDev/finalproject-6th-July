@@ -23,8 +23,12 @@ function AddEvent() {
   };
 
   const handleDateChange = (date) => {
+    if (date) {
+      date.setHours(0, 0, 0, 0);
+    }
     setFormData({ ...formData, assignedDate: date });
   };
+
 
   const handleBlockChange = (e) => {
     setNewBlock({ ...newBlock, data: e.target.value });
@@ -47,11 +51,18 @@ function AddEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.title || !formData.subject || !formData.assignedDate) {
+      alert('Please fill out all required fields including date.');
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
-        userId: '64xxxxxxxxxxxxxxxxxxxxxx',    
-        calendarId: '65yyyyyyyyyyyyyyyyyyyy',  
+        assignedDate: formData.assignedDate?.toISOString(),  // ISO đầy đủ
+        userId: '64xxxxxxxxxxxxxxxxxxxxxx',
+        calendarId: '65yyyyyyyyyyyyyyyyyyyy',
       };
 
       const response = await axios.post('http://localhost:8003/api/notes', payload);
@@ -72,6 +83,7 @@ function AddEvent() {
           <TextField
             fullWidth margin="normal"
             label="Title"
+            required
             value={formData.title}
             onChange={handleChange('title')}
           />
@@ -79,6 +91,7 @@ function AddEvent() {
           <TextField
             fullWidth margin="normal"
             label="Subject"
+            required
             value={formData.subject}
             onChange={handleChange('subject')}
           />
@@ -88,7 +101,9 @@ function AddEvent() {
               label="Assigned Date"
               value={formData.assignedDate}
               onChange={handleDateChange}
-              renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+              renderInput={(params) => (
+                <TextField {...params} fullWidth margin="normal" required />
+              )}
             />
           </LocalizationProvider>
 
@@ -124,7 +139,6 @@ function AddEvent() {
             </Button>
           </Box>
 
-          {/* List of blocks */}
           {formData.contentBlocks.map((block, idx) => (
             <Box
               key={idx}
@@ -136,8 +150,8 @@ function AddEvent() {
                   block.type === 'text'
                     ? 'primary.main'
                     : block.type === 'code'
-                    ? 'secondary.main'
-                    : 'success.main',
+                      ? 'secondary.main'
+                      : 'success.main',
                 backgroundColor: '#f9f9f9',
                 borderRadius: 1,
                 position: 'relative',

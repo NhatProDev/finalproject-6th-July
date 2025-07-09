@@ -1,24 +1,30 @@
 const Note = require('../schema/noteSchema');
 const { encrypt, decrypt } = require('../security/crypto');
+const moment = require('moment-timezone');
 
+// 🔹 Save new note
 // 🔹 Save new note
 const saveNote = async (req, res) => {
     try {
         const { title, subject, contentBlocks, assignedDate, calendarId } = req.body;
         const userId = req.user.id || req.user._id;
 
+        if (!assignedDate || isNaN(new Date(assignedDate).getTime())) {
+            return res.status(400).json({ error: 'Invalid assignedDate format' });
+        }
+
         const encryptedBlocks = contentBlocks.map(block => ({
             type: block.type,
-            data: encrypt(JSON.stringify(block.data))
+            data: encrypt(JSON.stringify(block.data)),
         }));
 
         const newNote = new Note({
             title: title ? encrypt(title) : '',
             subject: subject ? encrypt(subject) : '',
             contentBlocks: encryptedBlocks,
-            assignedDate,
+            assignedDate: new Date(assignedDate),  // ISO string like "2025-07-08"
             userId,
-            calendarId
+            calendarId,
         });
 
         await newNote.save();
@@ -28,6 +34,9 @@ const saveNote = async (req, res) => {
         res.status(500).json({ error: 'Failed to save note' });
     }
 };
+
+
+
 
 // 🔹 Get one note
 const getNote = async (req, res) => {
@@ -177,12 +186,20 @@ const changeNoteDate = async (req, res) => {
             return res.status(400).json({ error: 'Missing assignedDate' });
         }
 
+        const rawDate = new Date(assignedDate);
+        const localFixedDate = new Date(
+            rawDate.getFullYear(),
+            rawDate.getMonth(),
+            rawDate.getDate()
+        );
+
+
         const note = await Note.findById(id);
         if (!note) {
             return res.status(404).json({ message: 'Note not found' });
         }
 
-        note.assignedDate = new Date(assignedDate);
+        note.assignedDate = localFixedDate;
         note.updatedAt = new Date();
         await note.save();
 
